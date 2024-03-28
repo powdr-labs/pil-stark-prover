@@ -1,0 +1,8 @@
+[submodule "externals/zkevm-prover"]
+	path = externals/zkevm-prover
+	url = https://github.com/powdr-labs/zkevm-prover.git
+	branch = load_chelpers_dynamically
+[submodule "externals/pil-stark"]
+	path = externals/pil-stark
+	url = https://github.com/powdr-labs/pil-stark.git
+	branch = powdr
