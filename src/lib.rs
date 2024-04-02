@@ -79,7 +79,7 @@ pub fn generate_proof(
     let zkevm_prover_dir = crate_dir.join("externals/zkevm-prover");
 
     let verification_key_json = output_dir.join("verification_key.json");
-    let consttree_json = output_dir.join("consttree.json");
+    let consttree_bin = output_dir.join("consttree.bin");
     let starkinfo_json = output_dir.join("starkinfo.json");
     let chelpers_bin = output_dir.join("chelpers.bin");
     let chelpers_header_dir = output_dir.join("chelpers");
@@ -96,7 +96,7 @@ pub fn generate_proof(
             .arg("-s")
             .arg(starkstruct_json)
             .arg("-t")
-            .arg(&consttree_json)
+            .arg(&consttree_bin)
             .arg("-v")
             .arg(&verification_key_json);
 
@@ -184,7 +184,7 @@ pub fn generate_proof(
     print_and_run(
         Command::new(zkevm_prover_dir.join("build/zkProverTest"))
             .arg(constants_bin)
-            .arg(consttree_json)
+            .arg(consttree_bin)
             .arg(&starkinfo_json)
             .arg(commits_bin)
             .arg(chelpers_bin)
