@@ -162,7 +162,7 @@ pub fn generate_proof(
                 "-DNOMINMAX",
                 "-o",
             ])
-            .arg(&output_dir.join("dynamic_chelpers.so"))
+            .arg(&dynamic_chelpers)
             .arg(crate_dir.join("externals/zkevm-prover/test/examples/dynamic_chelpers.cpp"))
             .arg(format!("-I{}", chelpers_header_dir.to_str().unwrap()))
             .args(
@@ -183,13 +183,23 @@ pub fn generate_proof(
     fs::create_dir_all(&proof_output_dir)?;
     print_and_run(
         Command::new(zkevm_prover_dir.join("build/zkProverTest"))
-            .arg(constants_bin)
-            .arg(consttree_bin)
-            .arg(&starkinfo_json)
-            .arg(commits_bin)
-            .arg(chelpers_bin)
-            .arg(dynamic_chelpers)
-            .arg(&verification_key_json)
+            .args(
+                [
+                    constants_bin,
+                    &consttree_bin,
+                    &starkinfo_json,
+                    commits_bin,
+                    &chelpers_bin,
+                    &dynamic_chelpers,
+                    &verification_key_json,
+                ]
+                .iter()
+                .map(|p| {
+                    // Since we run the prover from a different directory, we
+                    // have to make all paths absolute.
+                    p.canonicalize().unwrap()
+                }),
+            )
             .current_dir(&output_dir),
         Error::ProofGen,
     )?;
@@ -245,11 +255,29 @@ pub fn verify_proof(
 
 #[cfg(test)]
 mod tests {
+    use std::env::set_current_dir;
+
     use super::*;
     use test_log::test;
 
     #[test]
-    fn prove_and_verify() {
+    fn prove_and_verify_absolute() {
+        let output_dir = mktemp::Temp::new_dir().unwrap();
+        prove_and_verify(&output_dir);
+    }
+
+    #[test]
+    fn prove_and_verify_relative() {
+        let abs_output_dir = mktemp::Temp::new_dir().unwrap();
+
+        // Run from the parent path of the output directory, where output_dir is a relative path.
+        set_current_dir(abs_output_dir.as_path().parent().unwrap()).unwrap();
+        let rel_output_dir = abs_output_dir.file_name().unwrap();
+
+        prove_and_verify(Path::new(rel_output_dir));
+    }
+
+    fn prove_and_verify(output_dir: &Path) {
         let crate_dir = Path::new(CRATE_DIR);
         let test_data_dir = crate_dir.join("test-data");
 
@@ -258,8 +286,6 @@ mod tests {
         let constants_bin = test_data_dir.join("constants.bin");
         let commits_bin = test_data_dir.join("commits.bin");
         let publics_json = test_data_dir.join("publics.json");
-
-        let output_dir = mktemp::Temp::new_dir().unwrap();
 
         let output_files = generate_proof(
             &pil_json,
