@@ -31,4 +31,4 @@ jobs:
       run: cargo build --all --all-targets --all-features --profile pr-tests
     - uses: taiki-e/install-action@nextest
     - name: Run tests
-      run: RUST_LOG=info cargo nextest run --workspace --all-features --all-targets --cargo-profile pr-tests
+      run: RUST_LOG=info cargo nextest run --workspace --all-features --all-targets --cargo-profile pr-tests --nocapture
