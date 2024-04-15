@@ -22,7 +22,7 @@ jobs:
     - name: Install Rust toolchain 1.74 (with clippy and rustfmt)
       run: rustup toolchain install 1.74-x86_64-unknown-linux-gnu && rustup component add clippy --toolchain 1.74-x86_64-unknown-linux-gnu && rustup component add rustfmt --toolchain 1.74-x86_64-unknown-linux-gnu
     - name: Install pil-stark dependency
-      run: sudo apt-get install -y nlohmann-json3-dev
+      run: sudo apt-get install -y nlohmann-json3-dev libpqxx-dev nasm
     - name: Format
       run: cargo fmt --all --check --verbose
     - name: Lint
