@@ -16,3 +16,12 @@ env_logger = "0.10.0"
 
 [build-dependencies]
 num_cpus = "1.16.0"
+
+[profile.pr-tests]
+inherits = "dev"
+opt-level = 3
+debug = "line-tables-only"
+debug-assertions = true
+overflow-checks = true
+panic = 'unwind'
+codegen-units = 256

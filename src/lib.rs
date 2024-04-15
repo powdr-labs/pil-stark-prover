@@ -152,7 +152,7 @@ pub fn generate_proof(
     log::info!("Compiling C helpers into a shared library...");
     print_and_run(
         Command::new("g++")
-            .args(&[
+            .args([
                 "-std=c++17",
                 "-shared",
                 "-fPIC",
@@ -166,7 +166,7 @@ pub fn generate_proof(
             .arg(crate_dir.join("externals/zkevm-prover/test/examples/dynamic_chelpers.cpp"))
             .arg(format!("-I{}", chelpers_header_dir.to_str().unwrap()))
             .args(
-                &[
+                [
                     "src/config",
                     "src/starkpil",
                     "src/utils",
@@ -200,7 +200,7 @@ pub fn generate_proof(
                     p.canonicalize().unwrap()
                 }),
             )
-            .current_dir(&output_dir),
+            .current_dir(output_dir),
         Error::ProofGen,
     )?;
 
@@ -292,7 +292,7 @@ mod tests {
             &starkstruct_json,
             &constants_bin,
             &commits_bin,
-            &output_dir,
+            output_dir,
         )
         .expect("proof generation failed");
 
