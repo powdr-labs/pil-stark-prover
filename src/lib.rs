@@ -14,7 +14,7 @@ pub struct OutputFiles {
 }
 
 const MAX_NODE_MEM: u32 = 1024 * 16;
-const CRATE_DIR: &str = env!("CARGO_MANIFEST_DIR");
+const EXTERNALS_DIR: &str = env!("OUT_DIR");
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -72,11 +72,11 @@ pub fn generate_proof(
     commits_bin: &Path,
     output_dir: &Path,
 ) -> Result<OutputFiles, Error> {
-    let crate_dir = Path::new(CRATE_DIR);
-    let pil_stark_root = crate_dir.join("externals/pil-stark");
+    let externals_dir = Path::new(EXTERNALS_DIR);
+    let pil_stark_root = externals_dir.join("pil-stark");
     let pil_stark_src = pil_stark_root.join("src");
 
-    let zkevm_prover_dir = crate_dir.join("externals/zkevm-prover");
+    let zkevm_prover_dir = externals_dir.join("zkevm-prover");
 
     let verification_key_json = output_dir.join("verification_key.json");
     let consttree_bin = output_dir.join("consttree.bin");
@@ -163,7 +163,7 @@ pub fn generate_proof(
                 "-o",
             ])
             .arg(&dynamic_chelpers)
-            .arg(crate_dir.join("externals/zkevm-prover/test/examples/dynamic_chelpers.cpp"))
+            .arg(externals_dir.join("zkevm-prover/test/examples/dynamic_chelpers.cpp"))
             .arg(format!("-I{}", chelpers_header_dir.to_str().unwrap()))
             .args(
                 [
@@ -217,8 +217,8 @@ pub fn verify_proof(
     proof_json: &Path,
     publics_json: &Path,
 ) -> Result<(), Error> {
-    let crate_dir = Path::new(CRATE_DIR);
-    let pil_stark_root = crate_dir.join("externals/pil-stark");
+    let externals_dir = Path::new(EXTERNALS_DIR);
+    let pil_stark_root = externals_dir.join("pil-stark");
     let pil_stark_src = pil_stark_root.join("src");
 
     log::info!("Verifying proof...");
@@ -278,8 +278,7 @@ mod tests {
     }
 
     fn prove_and_verify(output_dir: &Path) {
-        let crate_dir = Path::new(CRATE_DIR);
-        let test_data_dir = crate_dir.join("test-data");
+        let test_data_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("test-data");
 
         let pil_json = test_data_dir.join("constraints.json");
         let starkstruct_json = test_data_dir.join("starkstruct.json");
