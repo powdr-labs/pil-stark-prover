@@ -1,5 +1,6 @@
 use std::{
-    fs,
+    borrow::Cow,
+    env, fs,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
@@ -14,7 +15,22 @@ pub struct OutputFiles {
 }
 
 const MAX_NODE_MEM: u32 = 1024 * 16;
-const EXTERNALS_DIR: &str = env!("OUT_DIR");
+
+fn deps_dir() -> Cow<'static, Path> {
+    const DEFAULT_DEPS_DIR: &str = env!("OUT_DIR");
+
+    match env::var_os("PIL_STARK_PROVER_DEPS") {
+        Some(deps_dir) => Cow::Owned(deps_dir.into()),
+        None => {
+            let default_deps_dir = Path::new(DEFAULT_DEPS_DIR);
+            if default_deps_dir.is_dir() {
+                Cow::Borrowed(default_deps_dir)
+            } else {
+                panic!("pil-stark-prover dependencies directory not found!\nEither set PIL_STARK_PROVER_DEPS environment variable, or build the project locally from source.\nSee README.md for more information.")
+            }
+        }
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -72,7 +88,7 @@ pub fn generate_proof(
     commits_bin: &Path,
     output_dir: &Path,
 ) -> Result<OutputFiles, Error> {
-    let externals_dir = Path::new(EXTERNALS_DIR);
+    let externals_dir = deps_dir();
     let pil_stark_root = externals_dir.join("pil-stark");
     let pil_stark_src = pil_stark_root.join("src");
 
@@ -217,7 +233,7 @@ pub fn verify_proof(
     proof_json: &Path,
     publics_json: &Path,
 ) -> Result<(), Error> {
-    let externals_dir = Path::new(EXTERNALS_DIR);
+    let externals_dir = deps_dir();
     let pil_stark_root = externals_dir.join("pil-stark");
     let pil_stark_src = pil_stark_root.join("src");
 
