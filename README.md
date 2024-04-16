@@ -10,7 +10,7 @@ e.g. with `cargo run` or `cargo test`, it will work out of the box. But if the
 binaries are executed from another machine, e.g. from a `nextest` archive, it
 will fail unless the original `OUT_DIR` contents are manually provided.
 
-Cargo's `OUT_DIR` will typically be
-`target/<profile>/build/pil-stark-prover-<hash>/out`. If the original directory
-is not found at runtime, the library will search for its contents in the path
-pointed by environment variable `PIL_STARK_PROVER_DEPS`.
+The library will first search for the dependencies in the path given by
+environment variable `PIL_STARK_PROVER_DEPS`, and if not set, it fallbacks to
+the compile-time hardcoded path set by cargo's `OUT_DIR`, which is typically
+`target/<profile>/build/pil-stark-prover-<hash>/out`.
