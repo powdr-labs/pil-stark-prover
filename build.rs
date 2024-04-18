@@ -21,8 +21,14 @@ fn recursive_hardlink(from: &Path, to: &Path) {
 }
 
 fn main() {
-    let externals_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("externals");
-    // Configure build.rs rerun. Lossy conversion to str won't cut it here...
+    let src_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let externals_dir = src_dir.join("externals");
+    let dynamic_chelpers = src_dir.join("resources/dynamic_chelpers.cpp");
+    // Configure build.rs rerun.
+    println!(
+        "cargo:rerun-if-changed={}",
+        dynamic_chelpers.to_str().unwrap()
+    );
     println!("cargo:rerun-if-changed={}", externals_dir.to_str().unwrap());
 
     // Clear cargo's OUT_DIR
@@ -32,6 +38,9 @@ fn main() {
 
     // Hardlink all files of the externals directory to OUT_DIR
     recursive_hardlink(&externals_dir, &out_dir);
+
+    // Hardlink the dynamic_chelpers.cpp file to OUT_DIR
+    std::fs::hard_link(dynamic_chelpers, out_dir.join("dynamic_chelpers.cpp")).unwrap();
 
     // Run make test in the zkevm-prover directory
     let zkevm_prover_dir = out_dir.join("zkevm-prover");
