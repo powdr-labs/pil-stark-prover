@@ -1,7 +1,8 @@
 use std::{
     borrow::Cow,
-    env, fs,
-    io::{BufRead, BufReader},
+    env,
+    fs::{self, File},
+    io::{self, BufRead, BufReader, Read, Seek},
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
 };
@@ -81,6 +82,76 @@ fn node_command() -> Command {
     cmd
 }
 
+#[derive(Copy, Clone)]
+struct InvalidConstTree;
+
+impl From<io::Error> for InvalidConstTree {
+    fn from(_: io::Error) -> Self {
+        InvalidConstTree
+    }
+}
+
+impl From<serde_json::Error> for InvalidConstTree {
+    fn from(_: serde_json::Error) -> Self {
+        InvalidConstTree
+    }
+}
+
+// Do a quick sanity check to see if constree exists, has the right size and
+// matches the verification key.
+fn const_tree_check(
+    consttree_bin: &Path,
+    verification_key_json: &Path,
+) -> Result<(), InvalidConstTree> {
+    let err = InvalidConstTree;
+
+    let ct = File::open(consttree_bin)?;
+    let file_len = ct.metadata()?.len();
+
+    let mut ct = BufReader::new(ct);
+    let mut buff = [0u8; 8];
+
+    ct.read_exact(&mut buff)?;
+    let width = u64::from_le_bytes(buff);
+
+    ct.read_exact(&mut buff)?;
+    let height = u64::from_le_bytes(buff);
+
+    let number_of_elements = width * height;
+    let number_of_nodes = height * 2 - 1;
+
+    let total_expected_size = 16 + 8 * number_of_elements + 32 * number_of_nodes;
+
+    if file_len != total_expected_size {
+        return Err(err);
+    }
+
+    // Last node is the root node
+    ct.seek(io::SeekFrom::End(-32))?;
+    let mut expected_vkey = [0u64; 4];
+    for elem in expected_vkey.iter_mut() {
+        ct.read_exact(&mut buff)?;
+        *elem = u64::from_le_bytes(buff);
+    }
+    drop(ct);
+
+    let vkey: serde_json::Value =
+        serde_json::from_reader(BufReader::new(File::open(verification_key_json)?))?;
+    let actual_vkey = vkey
+        .as_object()
+        .and_then(|vkey| vkey.get("constRoot"))
+        .and_then(|vkey| vkey.as_array())
+        .ok_or(err)?;
+
+    for i in 0..4 {
+        if expected_vkey[i] != actual_vkey[i].as_u64().ok_or(err)? {
+            return Err(err);
+        }
+    }
+
+    Ok(())
+}
+
 pub fn generate_proof(
     pil_json: &Path,
     starkstruct_json: &Path,
@@ -101,39 +172,45 @@ pub fn generate_proof(
     let chelpers_header_dir = output_dir.join("chelpers");
     let dynamic_chelpers = output_dir.join("dynamic_chelpers.so");
 
-    log::info!("Generating constants merkle tree...");
-    {
-        let mut cmd = node_command();
-        cmd.arg(pil_stark_src.join("main_buildconsttree.js"))
-            .arg("-c")
-            .arg(constants_bin)
-            .arg("-j")
-            .arg(pil_json)
-            .arg("-s")
-            .arg(starkstruct_json)
-            .arg("-t")
-            .arg(&consttree_bin)
-            .arg("-v")
-            .arg(&verification_key_json);
+    // Constree generation is the slowest step, so we skip it if the output file
+    // already exists.
+    if const_tree_check(&consttree_bin, &verification_key_json).is_ok() {
+        log::info!("Reusing constants merkle tree found.");
+    } else {
+        log::info!("Generating constants merkle tree...");
+        {
+            let mut cmd = node_command();
+            cmd.arg(pil_stark_src.join("main_buildconsttree.js"))
+                .arg("-c")
+                .arg(constants_bin)
+                .arg("-j")
+                .arg(pil_json)
+                .arg("-s")
+                .arg(starkstruct_json)
+                .arg("-t")
+                .arg(&consttree_bin)
+                .arg("-v")
+                .arg(&verification_key_json);
 
-        match print_and_run(&mut cmd, Error::ConstTreeGen) {
-            Ok(_) => (),
-            Err(Error::ConstTreeGen(_)) => {
-                log::warn!(
+            match print_and_run(&mut cmd, Error::ConstTreeGen) {
+                Ok(_) => (),
+                Err(Error::ConstTreeGen(_)) => {
+                    log::warn!(
                     "Const tree generation failed, but this might be just missing dependencies."
                 );
-                log::info!("Trying to install npm dependencies...");
-                print_and_run(
-                    Command::new("npm")
-                        .arg("install")
-                        .current_dir(&pil_stark_root),
-                    Error::NpmInstall,
-                )?;
+                    log::info!("Trying to install npm dependencies...");
+                    print_and_run(
+                        Command::new("npm")
+                            .arg("install")
+                            .current_dir(&pil_stark_root),
+                        Error::NpmInstall,
+                    )?;
 
-                log::info!("Retrying constants merkle tree generation...");
-                print_and_run(&mut cmd, Error::ConstTreeGen)?;
+                    log::info!("Retrying constants merkle tree generation...");
+                    print_and_run(&mut cmd, Error::ConstTreeGen)?;
+                }
+                Err(e) => return Err(e),
             }
-            Err(e) => return Err(e),
         }
     }
 
