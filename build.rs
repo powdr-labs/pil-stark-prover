@@ -4,6 +4,9 @@ use std::{
     process::Command,
 };
 
+#[cfg(not(target_arch = "x86_64"))]
+compile_error!("This crate is only available on x86-64 architectures.");
+
 fn recursive_hardlink(from: &Path, to: &Path) {
     let mut stack = vec![from.to_path_buf()];
     while let Some(curr_from) = stack.pop() {
